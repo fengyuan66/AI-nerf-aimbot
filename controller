@@ -1,0 +1,80 @@
+
+#include <Servo.h>
+
+Servo servoX, servoY;
+int xAngle, yAngle;  // Current positions
+
+// Define physical limits for your servos
+#define SERVO_X_MIN 30
+#define SERVO_X_MAX 150
+#define SERVO_Y_MIN 80
+#define SERVO_Y_MAX 100
+
+void setup() {
+  Serial.begin(9600);
+  servoX.attach(9);
+  servoY.attach(10);
+
+  // Set an initial (default) position – adjust these as needed
+  xAngle = 90;
+  yAngle = 90;
+  servoX.write(xAngle);
+  servoY.write(yAngle);
+  delay(1000);  // Allow time for servos to move
+
+  // Print the default position, prefixed with "DEFAULT," so Python can parse it.
+  Serial.print("DEFAULT,");
+  Serial.print(xAngle);
+  Serial.print(",");
+  Serial.println(yAngle);
+}
+
+void loop() {
+  if (Serial.available() > 0) {
+    String input = Serial.readStringUntil('\n');
+    input.trim();
+
+    // If the computer sends the INIT command, reply with the default positions.
+    if (input.equals("INIT")) {
+      Serial.print("DEFAULT,");
+      Serial.print(xAngle);
+      Serial.print(",");
+      Serial.println(yAngle);
+    } else {
+      // Otherwise, expect a command in the format "newX,newY"
+      int newX, newY;
+      if (sscanf(input.c_str(), "%d,%d", &newX, &newY) == 2) {
+        // Constrain the new angles to the physical limits.
+        newX = constrain(newX, SERVO_X_MIN, SERVO_X_MAX);
+        newY = constrain(newY, SERVO_Y_MIN, SERVO_Y_MAX);
+
+        // Smoothly move towards the new angles.
+        while (xAngle != newX || yAngle != newY) {
+          if (xAngle < newX) {
+            int diff = newX - xAngle;
+            xAngle += (diff > 5 ? 2 : 1);
+            if (xAngle > newX) xAngle = newX;
+          } else if (xAngle > newX) {
+            int diff = xAngle - newX;
+            xAngle -= (diff > 5 ? 2 : 1);
+            if (xAngle < newX) xAngle = newX;
+          }
+          
+          if (yAngle < newY) {
+            int diff = newY - yAngle;
+            yAngle += (diff > 5 ? 2 : 1);
+            if (yAngle > newY) yAngle = newY;
+          } else if (yAngle > newY) {
+            int diff = yAngle - newY;
+            yAngle -= (diff > 5 ? 2 : 1);
+            if (yAngle < newY) yAngle = newY;
+          }
+          
+          servoX.write(xAngle);
+          servoY.write(yAngle);
+          delay(10);
+        }
+      }
+    }
+  }
+}
